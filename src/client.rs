@@ -11,15 +11,17 @@ pub struct TransferResult {
     pub file_size: u64,
     pub duration: Duration,
     pub throughput_mbps: f64,
+    pub chunk_size: usize,
 }
 
 impl TransferResult {
-    pub fn new(file_size: u64, duration: Duration) -> Self {
+    pub fn new(file_size: u64, duration: Duration, chunk_size: usize) -> Self {
         let throughput_mbps = (file_size as f64 * 8.0) / (duration.as_secs_f64() * 1_000_000.0);
         Self {
             file_size,
             duration,
             throughput_mbps,
+            chunk_size,
         }
     }
 }
@@ -38,17 +40,16 @@ impl FileClient {
         })
     }
 
-    pub async fn send_file(&self, file_size: u64) -> Result<TransferResult> {
+    pub async fn send_file(&self, file_size: u64, chunk_size: usize) -> Result<TransferResult> {
         let start_time = Instant::now();
 
         let stream = TcpStream::connect(self.server_addr).await?;
-        let domain = rustls::pki_types::ServerName::try_from("localhost")?;
+        let domain = rustls::ServerName::try_from("localhost")?;
         let mut tls_stream = self.connector.connect(domain, stream).await?;
 
         tls_stream.write_all(&file_size.to_le_bytes()).await?;
 
         let mut sent = 0u64;
-        let chunk_size = 8192;
         let data_chunk = vec![0u8; chunk_size];
 
         while sent < file_size {
@@ -69,6 +70,6 @@ impl FileClient {
         tls_stream.shutdown().await?;
 
         let duration = start_time.elapsed();
-        Ok(TransferResult::new(file_size, duration))
+        Ok(TransferResult::new(file_size, duration, chunk_size))
     }
 }

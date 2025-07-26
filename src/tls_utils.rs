@@ -21,12 +21,21 @@ pub fn generate_self_signed_cert() -> Result<(String, String)> {
 
 pub fn create_server_config(cert_pem: &str, key_pem: &str) -> Result<TlsAcceptor> {
     let cert_chain = rustls_pemfile::certs(&mut BufReader::new(cert_pem.as_bytes()))
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Result<Vec<_>, _>>()?
+        .iter()
+        .map(|v| rustls::Certificate(v.to_vec()))
+        .collect();
 
-    let private_key = rustls_pemfile::private_key(&mut BufReader::new(key_pem.as_bytes()))?
+    let mut private_keys = rustls_pemfile::pkcs8_private_keys(&mut BufReader::new(key_pem.as_bytes()))
+        .collect::<Result<Vec<_>, _>>()?;
+    
+    let private_key = private_keys
+        .pop()
+        .map(|k| rustls::PrivateKey(k.secret_pkcs8_der().to_vec()))
         .ok_or_else(|| anyhow::anyhow!("No private key found"))?;
 
     let config = ServerConfig::builder()
+        .with_safe_defaults()
         .with_no_client_auth()
         .with_single_cert(cert_chain, private_key)?;
 
@@ -35,7 +44,7 @@ pub fn create_server_config(cert_pem: &str, key_pem: &str) -> Result<TlsAcceptor
 
 pub fn create_client_config() -> Result<TlsConnector> {
     let config = ClientConfig::builder()
-        .dangerous()
+        .with_safe_defaults()
         .with_custom_certificate_verifier(Arc::new(NoVerification))
         .with_no_client_auth();
 
@@ -45,51 +54,16 @@ pub fn create_client_config() -> Result<TlsConnector> {
 #[derive(Debug)]
 struct NoVerification;
 
-impl rustls::client::danger::ServerCertVerifier for NoVerification {
+impl rustls::client::ServerCertVerifier for NoVerification {
     fn verify_server_cert(
         &self,
-        _end_entity: &rustls::pki_types::CertificateDer<'_>,
-        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
-        _server_name: &rustls::pki_types::ServerName<'_>,
+        _end_entity: &rustls::Certificate,
+        _intermediates: &[rustls::Certificate],
+        _server_name: &rustls::ServerName,
+        _scts: &mut dyn Iterator<Item = &[u8]>,
         _ocsp_response: &[u8],
-        _now: rustls::pki_types::UnixTime,
-    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
-        Ok(rustls::client::danger::ServerCertVerified::assertion())
-    }
-
-    fn verify_tls12_signature(
-        &self,
-        _message: &[u8],
-        _cert: &rustls::pki_types::CertificateDer<'_>,
-        _dss: &rustls::DigitallySignedStruct,
-    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
-    }
-
-    fn verify_tls13_signature(
-        &self,
-        _message: &[u8],
-        _cert: &rustls::pki_types::CertificateDer<'_>,
-        _dss: &rustls::DigitallySignedStruct,
-    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
-    }
-
-    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        vec![
-            rustls::SignatureScheme::RSA_PKCS1_SHA1,
-            rustls::SignatureScheme::ECDSA_SHA1_Legacy,
-            rustls::SignatureScheme::RSA_PKCS1_SHA256,
-            rustls::SignatureScheme::ECDSA_NISTP256_SHA256,
-            rustls::SignatureScheme::RSA_PKCS1_SHA384,
-            rustls::SignatureScheme::ECDSA_NISTP384_SHA384,
-            rustls::SignatureScheme::RSA_PKCS1_SHA512,
-            rustls::SignatureScheme::ECDSA_NISTP521_SHA512,
-            rustls::SignatureScheme::RSA_PSS_SHA256,
-            rustls::SignatureScheme::RSA_PSS_SHA384,
-            rustls::SignatureScheme::RSA_PSS_SHA512,
-            rustls::SignatureScheme::ED25519,
-            rustls::SignatureScheme::ED448,
-        ]
+        _now: std::time::SystemTime,
+    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::ServerCertVerified::assertion())
     }
 }

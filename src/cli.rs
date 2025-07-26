@@ -30,6 +30,12 @@ pub enum Commands {
 
         #[arg(long)]
         output: Option<String>,
+        
+        #[arg(long, default_value = "8192")]
+        chunk_size: usize,
+        
+        #[arg(long)]
+        chunk_analysis: bool,
     },
 }
 
