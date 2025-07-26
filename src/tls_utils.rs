@@ -9,26 +9,28 @@ use tokio_rustls::{TlsAcceptor, TlsConnector};
 pub fn generate_self_signed_cert() -> Result<(String, String)> {
     let mut params = CertificateParams::new(vec!["localhost".to_string()]);
     params.distinguished_name = DistinguishedName::new();
-    params.distinguished_name.push(rcgen::DnType::CommonName, "localhost");
-    
+    params
+        .distinguished_name
+        .push(rcgen::DnType::CommonName, "localhost");
+
     let cert = Certificate::from_params(params)?;
     let cert_pem = cert.serialize_pem()?;
     let key_pem = cert.serialize_private_key_pem();
-    
+
     Ok((cert_pem, key_pem))
 }
 
 pub fn create_server_config(cert_pem: &str, key_pem: &str) -> Result<TlsAcceptor> {
     let cert_chain = rustls_pemfile::certs(&mut BufReader::new(cert_pem.as_bytes()))
         .collect::<Result<Vec<_>, _>>()?;
-    
+
     let private_key = rustls_pemfile::private_key(&mut BufReader::new(key_pem.as_bytes()))?
         .ok_or_else(|| anyhow::anyhow!("No private key found"))?;
-    
+
     let config = ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(cert_chain, private_key)?;
-    
+
     Ok(TlsAcceptor::from(Arc::new(config)))
 }
 
@@ -37,7 +39,7 @@ pub fn create_client_config() -> Result<TlsConnector> {
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(NoVerification))
         .with_no_client_auth();
-    
+
     Ok(TlsConnector::from(Arc::new(config)))
 }
 

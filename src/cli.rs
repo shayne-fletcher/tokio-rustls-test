@@ -18,13 +18,13 @@ pub enum Commands {
     Client {
         #[arg(short = 's', long, default_value = "127.0.0.1:8443")]
         server: SocketAddr,
-        
+
         #[arg(long, default_value = "1048576")]
         size: u64,
-        
+
         #[arg(short = 'c', long, default_value = "1")]
         count: usize,
-        
+
         #[arg(long)]
         benchmark: bool,
     },
