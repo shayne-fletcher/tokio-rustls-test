@@ -1,7 +1,6 @@
 use anyhow::Result;
 use rcgen::{Certificate, CertificateParams, DistinguishedName};
 use rustls::{ClientConfig, ServerConfig};
-use rustls_pemfile;
 use std::io::BufReader;
 use std::sync::Arc;
 use tokio_rustls::{TlsAcceptor, TlsConnector};

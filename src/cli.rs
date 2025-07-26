@@ -27,6 +27,9 @@ pub enum Commands {
 
         #[arg(long)]
         benchmark: bool,
+
+        #[arg(long)]
+        output: Option<String>,
     },
 }
 
