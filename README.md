@@ -73,6 +73,10 @@ Size         Duration     Throughput
 
 The benchmark now tests 20 different file sizes from 1KB to 1GB, providing detailed performance curves for analysis.
 
+## Version Comparison
+
+To benchmark and compare different tokio-rustls versions, see [BENCHMARKING.md](BENCHMARKING.md) for detailed procedures.
+
 ## Build
 
 ```bash
